@@ -23,27 +23,54 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'role:superadmin|admin'])
+
+// ===================== ADMIN AREA =====================
+Route::middleware(['auth'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+
+        // 📌 Dashboard (any role that has 'view_dashboard' can see it)
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])
+            ->middleware('permission:view_dashboard')
             ->name('dashboard');
 
-        // Roles CRUD
-        Route::resource('roles', RoleController::class)->except(['show']);
+
+        // 📌 Roles CRUD (only users with 'manage_roles')
+        Route::resource('roles', RoleController::class)
+            ->except(['show'])
+            ->middleware('permission:manage_roles');
+
         // Assign permissions to a role
-         Route::get('roles/{role}/permissions', [RoleController::class, 'assignPermissions'])->name('roles.permissions');
-         Route::post('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->name('roles.updatePermissions');
+        Route::get('roles/{role}/permissions', [RoleController::class, 'assignPermissions'])
+            ->middleware('permission:manage_roles')
+            ->name('roles.permissions');
+
+        Route::post('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])
+            ->middleware('permission:manage_roles')
+            ->name('roles.updatePermissions');
 
 
+        // 📌 Permissions CRUD (only users with 'manage_permissions')
+        Route::resource('permissions', PermissionController::class)
+            ->except(['show'])
+            ->middleware('permission:manage_roles');
 
-        // Permissions CRUD
-        Route::resource('permissions', PermissionController::class)->except(['show']);
 
-        // User access (roles + direct permissions)
-        Route::get('users', [UserAccessController::class, 'index'])->name('users.index');
-        Route::get('users/{user}/edit', [UserAccessController::class, 'edit'])->name('users.edit');
-        Route::post('users/{user}/roles', [UserAccessController::class, 'updateRoles'])->name('users.roles.update');
-        Route::post('users/{user}/permissions', [UserAccessController::class, 'updatePermissions'])->name('users.permissions.update');
+        // 📌 User Access (only users with 'manage_users')
+        Route::get('users', [UserAccessController::class, 'index'])
+            ->middleware('permission:manage_users')
+            ->name('users.index');
+
+        Route::get('users/{user}/edit', [UserAccessController::class, 'edit'])
+            ->middleware('permission:manage_users')
+            ->name('users.edit');
+
+        Route::post('users/{user}/roles', [UserAccessController::class, 'updateRoles'])
+            ->middleware('permission:manage_users')
+            ->name('users.roles.update');
+
+        Route::post('users/{user}/permissions', [UserAccessController::class, 'updatePermissions'])
+            ->middleware('permission:manage_users')
+            ->name('users.permissions.update');
     });

@@ -12,33 +12,18 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
-        // if you ever add more columns, add here
+        // add more fields here if needed
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -53,14 +38,14 @@ class User extends Authenticatable
     |--------------------------------------------------------------------------
     */
 
-    // user_roles pivot (default table name: role_user)
+    // user_roles pivot (role_user)
     public function roles()
     {
         return $this->belongsToMany(Role::class)
             ->withTimestamps();
     }
 
-    // direct permissions (permission_user pivot, with type = allow/deny)
+    // direct permissions via permission_user pivot, with 'type' = allow | deny
     public function directPermissions()
     {
         return $this->belongsToMany(Permission::class, 'permission_user')
@@ -68,102 +53,95 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    // permissions coming from roles
+    // permissions that come from roles
     public function rolePermissions()
     {
-        // make sure roles are loaded (avoid null on first call)
-        $roleIds = $this->roles->pluck('id');
+        // if roles not loaded yet, load them
+        $roles = $this->roles()->with('permissions')->get();
 
-        if ($roleIds->isEmpty()) {
-            return collect();
+        return $roles->pluck('permissions')
+            ->flatten()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Effective permissions: role-based ± direct overrides
+     * Returns a collection of Permission models
+     */
+    public function allPermissions()
+    {
+        // Start with role-based permissions (models)
+        $permissions = $this->rolePermissions();
+
+        // Direct overrides: ['slug' => 'allow' | 'deny']
+        $direct = $this->directPermissions()
+            ->get()
+            ->mapWithKeys(function ($p) {
+                return [$p->slug => $p->pivot->type]; // use 'name' if you prefer
+            });
+
+        // Apply overrides
+        foreach ($direct as $slug => $type) {
+            if ($type === 'allow') {
+                // ensure it's present
+                if (! $permissions->contains('slug', $slug)) {
+                    $permModel = Permission::where('slug', $slug)->first();
+                    if ($permModel) {
+                        $permissions->push($permModel);
+                    }
+                }
+            } elseif ($type === 'deny') {
+                // remove if present
+                $permissions = $permissions->reject(function ($p) use ($slug) {
+                    return $p->slug === $slug;
+                })->values();
+            }
         }
 
-        return Permission::whereHas('roles', function ($q) use ($roleIds) {
-            $q->whereIn('roles.id', $roleIds);
-        })->get();
+        return $permissions->unique('id')->values();
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Permission logic
+    | Role & Permission Helpers
     |--------------------------------------------------------------------------
     */
 
-    // All effective permissions: role-based + direct allow/deny overrides
-    public function allPermissions()
+    public function hasRole($role): bool
     {
-        // start from role-based permissions (use slug or name – pick one and be consistent)
-        $rolePerms = $this->rolePermissions()
-            ->pluck('slug') // or 'name' if you prefer
-            ->unique()
-            ->values()
-            ->toArray();
+        // If array: check if user has ANY of these role slugs/names
+        if (is_array($role)) {
+            $slugs = $this->roles->pluck('slug')->toArray();
+            $names = $this->roles->pluck('name')->toArray();
 
-        // direct permissions: ['permission_slug' => 'allow' | 'deny']
-        $direct = $this->directPermissions()
-            ->get()
-            ->mapWithKeys(function ($p) {
-                return [$p->slug => $p->pivot->type]; // or $p->name
-            })
-            ->toArray();
-
-        // apply direct overrides
-        foreach ($direct as $slug => $type) {
-            if ($type === 'allow') {
-                if (!in_array($slug, $rolePerms)) {
-                    $rolePerms[] = $slug;
-                }
-            } elseif ($type === 'deny') {
-                $rolePerms = array_values(array_diff($rolePerms, [$slug]));
-            }
+            return count(array_intersect($slugs, $role)) > 0
+                || count(array_intersect($names, $role)) > 0;
         }
 
-        return collect($rolePerms)->unique()->values();
-    }
-
-public function hasRole($role): bool
-{
-    // If array: check if user has ANY of these role slugs/names
-    if (is_array($role)) {
-        $slugs = $this->roles->pluck('slug')->toArray();
-        $names = $this->roles->pluck('name')->toArray();
-
-        return count(array_intersect($slugs, $role)) > 0
-            || count(array_intersect($names, $role)) > 0;
-    }
-
-    // If string: check by slug or name
-    if (is_string($role)) {
-        return $this->roles->contains('slug', $role)
-            || $this->roles->contains('name', $role);
-    }
-
-    // If Role model or id
-    return $this->roles->contains('id', $role->id ?? $role);
-}
-
-    public function hasPermission(string $permissionSlug): bool
-    {
-        // 1) check direct override first
-        $direct = $this->directPermissions()
-            ->where('slug', $permissionSlug) // or 'name'
-            ->first();
-
-        if ($direct) {
-            return $direct->pivot->type === 'allow';
+        // If string: check by slug or name
+        if (is_string($role)) {
+            return $this->roles->contains('slug', $role)
+                || $this->roles->contains('name', $role);
         }
 
-        // 2) else, check via roles
-        return $this->roles()
-            ->whereHas('permissions', function ($q) use ($permissionSlug) {
-                $q->where('slug', $permissionSlug); // or 'name'
-            })
-            ->exists();
+        // If Role model or id
+        return $this->roles->contains('id', $role->id ?? $role);
     }
 
-    public function permissions()
-{
-    return $this->belongsToMany(Permission::class)
-                ->withPivot('type'); // Include 'type' if it's part of the pivot table
-}
+    /**
+     * Check if user has a given permission (by slug or Permission model)
+     */
+    public function hasPermission($permission): bool
+    {
+        $effectivePermissions = $this->allPermissions();
+
+        if (is_string($permission)) {
+            return $effectivePermissions->contains('slug', $permission)
+                || $effectivePermissions->contains('name', $permission);
+        }
+
+        // If Permission model or id
+        return $effectivePermissions->contains('id', $permission->id ?? $permission);
+    }
 }

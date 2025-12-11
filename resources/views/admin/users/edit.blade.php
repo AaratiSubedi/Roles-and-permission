@@ -1,6 +1,5 @@
 @extends('layout.app')
 
-
 @section('title', 'Edit User Access')
 
 @section('content')
@@ -39,7 +38,7 @@
         </div>
     </div>
 
-    {{-- Direct permissions --}}
+    {{-- Direct permissions (Permissions not assigned to role) --}}
     <div class="col-md-6">
         <div class="card mb-3">
             <div class="card-header">Direct Permissions (Overrides)</div>
@@ -47,7 +46,7 @@
                 <form action="{{ route('admin.users.permissions.update', $user) }}" method="POST">
                     @csrf
 
-                    @foreach($permissions as $perm)
+                    @foreach($permissionsNotAssigned as $perm)
                         @php
                             $current = $userDirectPerms[$perm->id] ?? null;
                             $currentType = $current?->pivot?->type;

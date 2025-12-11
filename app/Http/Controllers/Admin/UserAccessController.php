@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Admin/UserAccessController.php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
@@ -10,25 +10,42 @@ use App\Http\Controllers\Controller;
 
 class UserAccessController extends Controller
 {
+    // Display all users with their roles and direct permissions
     public function index()
     {
         $users = User::with('roles', 'directPermissions')->paginate(20);
         return view('admin.users.index', compact('users'));
     }
 
-    public function edit(User $user)
-    {
-        $roles       = Role::all();
-        $permissions = Permission::all();
+    // Edit user roles and permissions
+public function edit(User $user)
+{
+    $roles       = Role::all();
+    $permissions = Permission::all();
 
-        $userRoleIds     = $user->roles->pluck('id')->toArray();
-        $userDirectPerms = $user->directPermissions->keyBy('id'); // includes pivot->type
+    // Get the role IDs assigned to the user
+    $userRoleIds = $user->roles->pluck('id')->toArray();
 
-        return view('admin.users.edit', compact(
-            'user', 'roles', 'permissions', 'userRoleIds', 'userDirectPerms'
-        ));
-    }
+    // Get the direct permissions assigned to the user (not via roles)
+    $userDirectPerms = $user->directPermissions->keyBy('id'); // includes pivot->type
 
+    // Get all permissions assigned to the user's roles (to exclude from available permissions)
+    $assignedPermissions = $user->roles->flatMap(function ($role) {
+        return $role->permissions;
+    })->pluck('id')->unique();
+
+    // Get the permissions that are not assigned to the user through their roles
+    $permissionsNotAssigned = $permissions->filter(function ($permission) use ($assignedPermissions) {
+        return !$assignedPermissions->contains($permission->id);
+    });
+
+    return view('admin.users.edit', compact(
+        'user', 'roles', 'permissionsNotAssigned', 'userRoleIds', 'userDirectPerms'
+    ));
+}
+
+
+    // Update roles for the user
     public function updateRoles(Request $request, User $user)
     {
         $request->validate([
@@ -36,11 +53,13 @@ class UserAccessController extends Controller
             'roles.*' => ['exists:roles,id'],
         ]);
 
+        // Sync the roles for the user
         $user->roles()->sync($request->roles ?? []);
 
         return back()->with('success', 'User roles updated.');
     }
 
+    // Update permissions for the user
     public function updatePermissions(Request $request, User $user)
     {
         $request->validate([
@@ -56,9 +75,9 @@ class UserAccessController extends Controller
             }
         }
 
+        // Sync the direct permissions (new ones) for the user
         $user->directPermissions()->sync($syncData);
 
         return back()->with('success', 'User direct permissions updated.');
     }
 }
-    

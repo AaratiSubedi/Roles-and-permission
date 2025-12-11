@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="{{ asset('admin/assets/vendor/css/theme-default.css') }}" />
     <link rel="stylesheet" href="{{ asset('admin/assets/css/demo.css') }}" />
     <link rel="stylesheet" href="{{ asset('admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}" />
+    <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" />
+
 
     @stack('styles')
 </head>
