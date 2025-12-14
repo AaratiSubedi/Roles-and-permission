@@ -47,7 +47,7 @@
         @if($user->hasPermission('manage_roles'))
         <li class="menu-item {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
             <a href="{{ route('admin.roles.index') }}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-user-badge"></i>
+                <i class="menu-icon tf-icons bx bx-crown"></i>
                 <div>Roles</div>
             </a>
         </li>

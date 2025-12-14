@@ -7,7 +7,13 @@
 
 <form action="{{ route('admin.permissions.store') }}" method="POST" class="card p-3">
     @csrf
+    <div class="form-group mb-3">
+    <label for="group">Group / Module</label>
+<input type="text" name="group" id="group" class="form-control"
+       value="{{ old('group') }}"
+       placeholder="Dashboard / Students / Courses / Quizzes">
 
+    </div>
     <div class="mb-3">
         <label class="form-label">Name</label>
         <input name="name" class="form-control" value="{{ old('name') }}">

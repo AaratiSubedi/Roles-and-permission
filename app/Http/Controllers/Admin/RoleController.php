@@ -3,48 +3,72 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Role;
 use App\Models\Permission;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 
 class RoleController extends Controller
 {
     // Display the list of roles
-    public function index()
-    {
-        $roles = Role::all();
-        return view('admin.roles.index', compact('roles'));
-    }
+public function index()
+{
+$roles = Role::withCount('users')
+    ->withCount('permissions')
+    ->with('permissions')
+    ->get();
+
+    $permissionsGrouped = Permission::orderBy('group')
+        ->orderBy('name')
+        ->get()
+        ->groupBy(fn($p) => $p->group ?: 'Other');
+
+    return view('admin.roles.index', compact('roles', 'permissionsGrouped'));
+}
 
     // Show the form for creating a new role
-    public function create()
-    {
-        return view('admin.roles.create');
-    }
+public function create()
+{
+    $permissionsGrouped = Permission::orderBy('group')
+        ->orderBy('name')
+        ->get()
+        ->groupBy(fn($p) => $p->group ?: 'Other');
+
+    return view('admin.roles.create', compact('permissionsGrouped'));
+}
+
 
     // Store a newly created role
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:roles',
-            'slug' => 'nullable|string|max:255|unique:roles',
-            'description' => 'nullable|string',
-        ]);
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255|unique:roles,name',
+        'slug' => 'nullable|string|max:255|unique:roles,slug',
+        'description' => 'nullable|string',
+    ]);
 
-        $role = Role::create($request->only('name', 'slug', 'description'));
+    Role::create([
+        'name' => $request->name,
+        'slug' => $request->slug ?: Str::slug($request->name),
+        'description' => $request->description,
+    ]);
 
-        return redirect()->route('admin.roles.index')->with('success', 'Role created successfully!');
-    }
+    return redirect()->route('admin.roles.index')
+        ->with('success', 'Role created successfully!');
+}
+
 
     // Show the form for editing a role
 public function edit(Role $role)
 {
-    $permissions = Permission::all();
+    // Group-wise permissions
+    $permissionsGrouped = Permission::orderBy('group')
+        ->orderBy('name')
+        ->get()
+        ->groupBy(fn($p) => $p->group ?: 'Other');
 
-    // Fetch the permission IDs that the role already has
     $rolePermissionIds = $role->permissions->pluck('id')->toArray();
 
-    // Pass role, permissions, and rolePermissionIds to the view
-    return view('admin.roles.edit', compact('role', 'permissions', 'rolePermissionIds'));
+    return view('admin.roles.edit', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
 }
 
     // Update the specified role
@@ -53,8 +77,11 @@ public function edit(Role $role)
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
             'slug' => 'nullable|string|max:255|unique:roles,slug,' . $role->id,
+            'group' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'permissions' => 'array|exists:permissions,id',
+            'permissions' => 'nullable|array',
+             'permissions.*' => 'exists:permissions,id',
+
         ]);
 
         $role->update($request->only('name', 'slug', 'description'));
@@ -64,22 +91,31 @@ public function edit(Role $role)
     }
 
     // Delete the specified role
-    public function destroy(Role $role)
-    {
-        $role->delete();
-        return redirect()->route('admin.roles.index')->with('success', 'Role deleted successfully!');
+public function destroy(Role $role)
+{
+    if ($role->slug === 'super-admin') {
+        return back()->with('error', 'Super Admin role cannot be deleted.');
     }
 
-    public function assignPermissions($roleId)
+    $role->delete();
+    return redirect()->route('admin.roles.index')->with('success', 'Role deleted successfully!');
+}
+
+public function assignPermissions($roleId)
 {
-    // Get the role
     $role = Role::findOrFail($roleId);
 
-    // Get all permissions
-    $permissions = Permission::all();
+    $permissionsGrouped = Permission::orderBy('group')
+        ->orderBy('name')
+        ->get()
+        ->groupBy(fn($p) => $p->group ?: 'Other');
 
-    return view('admin.roles.assign_permissions', compact('role', 'permissions'));
+    $rolePermissionIds = $role->permissions->pluck('id')->toArray();
+
+    return view('admin.roles.assign_permissions', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
 }
+
+
 
 public function updatePermissions(Request $request, $roleId)
 {

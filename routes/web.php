@@ -49,12 +49,18 @@ Route::middleware(['auth'])
         Route::post('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])
             ->middleware('permission:manage_roles')
             ->name('roles.updatePermissions');
+        
 
 
         // 📌 Permissions CRUD (only users with 'manage_permissions')
         Route::resource('permissions', PermissionController::class)
             ->except(['show'])
             ->middleware('permission:manage_roles');
+
+        Route::post('permissions/bulk-store', [PermissionController::class, 'bulkStore']
+        )->name('permissions.bulkStore');
+        Route::put('permissions/{permission}/ajax-update', [PermissionController::class, 'ajaxUpdate'])
+         ->name('permissions.ajaxUpdate');
 
 
         // 📌 User Access (only users with 'manage_users')
@@ -73,4 +79,8 @@ Route::middleware(['auth'])
         Route::post('users/{user}/permissions', [UserAccessController::class, 'updatePermissions'])
             ->middleware('permission:manage_users')
             ->name('users.permissions.update');
+
+
+        Route::resource('users', UserAccessController::class)
+         ->names('users');
     });

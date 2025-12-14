@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use App\Models\Permission;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Hash;
 
 class UserAccessController extends Controller
 {
@@ -80,4 +81,35 @@ public function edit(User $user)
 
         return back()->with('success', 'User direct permissions updated.');
     }
+
+
+
+    public function store(Request $request)
+{
+    // optionally gate by permission here
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email',
+        'password' => 'required|string|min:6',
+    ]);
+
+    User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+    ]);
+
+    return back()->with('success', 'User created successfully.');
+}
+
+public function destroy(User $user)
+{
+    if ($user->roles()->where('slug', 'super-admin')->exists()) {
+        return back()->with('error', 'Super Admin cannot be deleted.');
+    }
+
+    $user->delete();
+
+    return back()->with('success', 'User deleted successfully.');
+}
 }

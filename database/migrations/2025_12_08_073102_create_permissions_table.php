@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');            // Manage Users
             $table->string('slug')->unique();  // manage_users
+            $table->string('group')->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
         });
