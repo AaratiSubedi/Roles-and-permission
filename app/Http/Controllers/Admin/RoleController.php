@@ -10,20 +10,15 @@ use App\Http\Controllers\Controller;
 class RoleController extends Controller
 {
     // Display the list of roles
-public function index()
+public function index(Request $request)
 {
-$roles = Role::withCount('users')
-    ->withCount('permissions')
-    ->with('permissions')
-    ->get();
-
-    $permissionsGrouped = Permission::orderBy('group')
-        ->orderBy('name')
-        ->get()
-        ->groupBy(fn($p) => $p->group ?: 'Other');
-
-    return view('admin.roles.index', compact('roles', 'permissionsGrouped'));
+    return redirect()->route('admin.access-control.index', [
+        'tab' => 'roles',
+        'role_q' => $request->get('q'), // keep search if any
+    ]);
 }
+
+
 
     // Show the form for creating a new role
 public function create()
@@ -33,7 +28,7 @@ public function create()
         ->get()
         ->groupBy(fn($p) => $p->group ?: 'Other');
 
-    return view('admin.roles.create', compact('permissionsGrouped'));
+    return view('admin.access-control.roles.create', compact('permissionsGrouped'));
 }
 
 
@@ -52,24 +47,25 @@ public function store(Request $request)
         'description' => $request->description,
     ]);
 
-    return redirect()->route('admin.roles.index')
-        ->with('success', 'Role created successfully!');
+    return redirect()
+        ->route('admin.access-control.index', ['tab' => 'roles'])
+        ->with('success', 'Role created successfully.');
 }
 
 
     // Show the form for editing a role
-public function edit(Role $role)
-{
-    // Group-wise permissions
-    $permissionsGrouped = Permission::orderBy('group')
-        ->orderBy('name')
-        ->get()
-        ->groupBy(fn($p) => $p->group ?: 'Other');
+// public function edit(Role $role)
+// {
+//     // Group-wise permissions
+//     $permissionsGrouped = Permission::orderBy('group')
+//         ->orderBy('name')
+//         ->get()
+//         ->groupBy(fn($p) => $p->group ?: 'Other');
 
-    $rolePermissionIds = $role->permissions->pluck('id')->toArray();
+//     $rolePermissionIds = $role->permissions->pluck('id')->toArray();
 
-    return view('admin.roles.edit', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
-}
+//     return view('admin.roles.edit', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
+// }
 
     // Update the specified role
     public function update(Request $request, Role $role)
@@ -87,8 +83,10 @@ public function edit(Role $role)
         $role->update($request->only('name', 'slug', 'description'));
         $role->permissions()->sync($request->permissions);
 
-        return redirect()->route('admin.roles.index')->with('success', 'Role updated successfully!');
-    }
+       return redirect()
+        ->route('admin.access-control.index', ['tab' => 'roles'])
+        ->with('success', 'Role updated successfully.');
+}
 
     // Delete the specified role
 public function destroy(Role $role)
@@ -98,8 +96,9 @@ public function destroy(Role $role)
     }
 
     $role->delete();
-    return redirect()->route('admin.roles.index')->with('success', 'Role deleted successfully!');
-}
+    return redirect()
+        ->route('admin.access-control.index', ['tab' => 'roles'])
+        ->with('success', 'Role deleted successfully.');}
 
 public function assignPermissions($roleId)
 {
@@ -112,7 +111,7 @@ public function assignPermissions($roleId)
 
     $rolePermissionIds = $role->permissions->pluck('id')->toArray();
 
-    return view('admin.roles.assign_permissions', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
+    return view('admin.access-control.roles.assign_permissions', compact('role', 'permissionsGrouped', 'rolePermissionIds'));
 }
 
 
@@ -124,6 +123,6 @@ public function updatePermissions(Request $request, $roleId)
     // Sync the permissions with the role (update them)
     $role->permissions()->sync($request->permissions); // Sync selected permissions
 
-    return redirect()->route('admin.roles.index')->with('success', 'Permissions updated successfully.');
+    return redirect()->route('admin.access-control.index',['tab' => 'roles'])->with('success', 'Permissions updated successfully.');
 }
 }

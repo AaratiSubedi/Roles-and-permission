@@ -9,19 +9,12 @@ use App\Http\Controllers\Controller;
 class PermissionController extends Controller
 {
     // Display the list of permissions
-public function index()
+public function index(Request $request)
 {
-    $permissions = Permission::withCount('roles')
-        ->orderBy('id', 'desc')
-        ->paginate(40);
-
-    $permissionGroups = Permission::whereNotNull('group')
-        ->where('group', '!=', '')
-        ->distinct()
-        ->orderBy('group')
-        ->pluck('group');
-
-    return view('admin.permissions.index', compact('permissions', 'permissionGroups'));
+    return redirect()->route('admin.access-control.index', [
+        'tab' => 'permissions',
+        'perm_q' => $request->get('q'),
+    ]);
 }
 
 
@@ -30,7 +23,7 @@ public function index()
     // Show the form for creating a new permission
     public function create()
     {
-        return view('admin.permissions.create');
+        return view('admin.access-control.permissions.create');
     }
 
     // Store a newly created permission
@@ -50,16 +43,17 @@ public function store(Request $request)
         'description' => $request->description,
     ]);
 
-    return redirect()->route('admin.permissions.index')
-        ->with('success', 'Permission created successfully!');
+return redirect()
+    ->route('admin.access-control.index', ['tab' => 'permissions'])
+    ->with('success', 'Permission created successfully!');
 }
 
 
     // Show the form for editing a permission
-    public function edit(Permission $permission)
-    {
-        return view('admin.permissions.edit', compact('permission'));
-    }
+    // public function edit(Permission $permission)
+    // {
+    //     return view('admin.permissions.edit', compact('permission'));
+    // }
 
     // Update the specified permission
 public function update(Request $request, Permission $permission)
@@ -80,7 +74,9 @@ public function update(Request $request, Permission $permission)
         'description' => $request->description,
     ]);
 
-    return redirect()->route('admin.permissions.index')->with('success', 'Permission updated successfully!');
+return redirect()
+    ->route('admin.access-control.index', ['tab' => 'permissions'])
+    ->with('success', 'Permission updated successfully!');
 }
 
 
@@ -88,7 +84,10 @@ public function update(Request $request, Permission $permission)
     public function destroy(Permission $permission)
     {
         $permission->delete();
-        return redirect()->route('admin.permissions.index')->with('success', 'Permission deleted successfully!');
+    return redirect()
+    ->route('admin.access-control.index', ['tab' => 'permissions'])
+    ->with('success', 'Permission deleted successfully!');
+
     }
 
     public function bulkStore(Request $request)
@@ -111,9 +110,10 @@ public function update(Request $request, Permission $permission)
         );
     }
 
-    return redirect()
-        ->route('admin.permissions.index')
-        ->with('success', 'Permissions added successfully.');
+return redirect()
+    ->route('admin.access-control.index', ['tab' => 'permissions'])
+    ->with('success', 'Permissions added successfully.');
+
 }
 
 public function ajaxUpdate(Request $request, Permission $permission)

@@ -5,6 +5,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\UserAccessController;
+use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 
 Route::get('/', function () {
@@ -23,25 +24,26 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-
 // ===================== ADMIN AREA =====================
 Route::middleware(['auth'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
-        // 📌 Dashboard (any role that has 'view_dashboard' can see it)
+        // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])
             ->middleware('permission:view_dashboard')
             ->name('dashboard');
 
-
-        // 📌 Roles CRUD (only users with 'manage_roles')
+        // ✅ Combined Access Control page (tabs)
+      Route::get('access-control', [AccessControlController::class, 'index'])
+    ->name('access-control.index');
+        // Roles CRUD
         Route::resource('roles', RoleController::class)
             ->except(['show'])
             ->middleware('permission:manage_roles');
 
-        // Assign permissions to a role
+        // Role permissions assign page
         Route::get('roles/{role}/permissions', [RoleController::class, 'assignPermissions'])
             ->middleware('permission:manage_roles')
             ->name('roles.permissions');
@@ -49,29 +51,21 @@ Route::middleware(['auth'])
         Route::post('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])
             ->middleware('permission:manage_roles')
             ->name('roles.updatePermissions');
-        
 
-
-        // 📌 Permissions CRUD (only users with 'manage_permissions')
+        // Permissions CRUD
         Route::resource('permissions', PermissionController::class)
             ->except(['show'])
-            ->middleware('permission:manage_roles');
+            ->middleware('permission:manage_permissions');
 
-        Route::post('permissions/bulk-store', [PermissionController::class, 'bulkStore']
-        )->name('permissions.bulkStore');
+        Route::post('permissions/bulk-store', [PermissionController::class, 'bulkStore'])
+            ->middleware('permission:manage_permissions')
+            ->name('permissions.bulkStore');
+
         Route::put('permissions/{permission}/ajax-update', [PermissionController::class, 'ajaxUpdate'])
-         ->name('permissions.ajaxUpdate');
+            ->middleware('permission:manage_permissions')
+            ->name('permissions.ajaxUpdate');
 
-
-        // 📌 User Access (only users with 'manage_users')
-        Route::get('users', [UserAccessController::class, 'index'])
-            ->middleware('permission:manage_users')
-            ->name('users.index');
-
-        Route::get('users/{user}/edit', [UserAccessController::class, 'edit'])
-            ->middleware('permission:manage_users')
-            ->name('users.edit');
-
+        // ✅ These two are REQUIRED because your edit page calls them
         Route::post('users/{user}/roles', [UserAccessController::class, 'updateRoles'])
             ->middleware('permission:manage_users')
             ->name('users.roles.update');
@@ -80,7 +74,10 @@ Route::middleware(['auth'])
             ->middleware('permission:manage_users')
             ->name('users.permissions.update');
 
-
+        // User Access
         Route::resource('users', UserAccessController::class)
-         ->names('users');
+            ->names('users')
+            ->middleware('permission:manage_users');
     });
+
+

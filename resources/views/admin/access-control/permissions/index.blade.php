@@ -1,21 +1,38 @@
-@extends('layout.app')
 
-@section('title', 'Permissions')
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Permissions</h4>
 
-@section('content')
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4>Permissions</h4>
+    <div class="d-flex align-items-center gap-3">
+        {{-- Search --}}
+<form method="GET" action="{{ route('admin.access-control.index') }}" class="perm-search" id="permSearchForm">
+  <input type="hidden" name="tab" value="permissions">
+  <div class="input-group perm-search-pill">
+    <span class="input-group-text bg-white border-0 ps-3">
+      <i class="bx bx-search"></i>
+    </span>
 
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPermissionModal">
-            Add Permission
+    <input type="text"
+           id="permSearchInput"
+           name="perm_q"
+           value="{{ request('perm_q') }}"
+           class="form-control border-0 pe-3"
+           placeholder="Search Permission...">
+  </div>
+</form>
+
+
+        {{-- Add Permission --}}
+        <button class="btn btn-primary perm-add-btn" data-bs-toggle="modal" data-bs-target="#addPermissionModal">
+            <i class="bx bx-plus me-1"></i> Add Permission
         </button>
     </div>
+</div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
 
-    <div id="permAlert"></div>
+<div id="permAlert"></div>
 
     <div class="card">
         <div class="card-body">
@@ -225,7 +242,18 @@
             </div>
         </div>
     </div>
-@endsection
+
+@push('styles')
+<style>
+.perm-search { width: 360px; }
+@media (max-width: 768px){ .perm-search { width: 100%; } }
+.perm-search-pill{
+  background:#fff; border:1px solid #d7dde7; border-radius:12px;
+  overflow:hidden; height:40px; box-shadow:0 8px 22px rgba(0,0,0,.06);
+}
+.perm-add-btn{ height:40px; border-radius:12px; padding:0 16px; }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -304,7 +332,9 @@
     // Update row UI
     document.getElementById(`permName${id}`).innerText = data.permission.name ?? '';
     document.getElementById(`permSlug${id}`).innerText = data.permission.slug ?? '';
-    document.getElementById(`permGroup${id}`).innerText = data.permission.group ?? '-';
+    document.getElementById(`permGroup${id}`).innerHTML =
+  `<span class="badge bg-info">${data.permission.group ?? '-'}</span>`;
+
     document.getElementById(`permRolesCount${id}`).innerText = `${data.permission.roles_count ?? 0} Roles`;
 
     bootstrap.Modal.getInstance(document.getElementById('editPermissionModal')).hide();
@@ -317,4 +347,32 @@
     setTimeout(() => el.innerHTML = '', 2500);
   }
 </script>
+<script>
+  function setupLiveSearch(formId, inputId, delay = 350) {
+    const form = document.getElementById(formId);
+    const input = document.getElementById(inputId);
+    if (!form || !input) return;
+
+    let t = null;
+
+    input.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => form.submit(), delay);
+    });
+
+    // Optional: Enter submits immediately
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        form.submit();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setupLiveSearch('roleSearchForm', 'roleSearchInput');
+    setupLiveSearch('permSearchForm', 'permSearchInput');
+  });
+</script>
+
 @endpush

@@ -133,7 +133,12 @@ class User extends Authenticatable
      * Check if user has a given permission (by slug or Permission model)
      */
     public function hasPermission($permission): bool
+    
     {
+
+         if ($this->roles()->where('slug', 'super-admin')->exists()) {
+        return true;
+    }
         $effectivePermissions = $this->allPermissions();
 
         if (is_string($permission)) {

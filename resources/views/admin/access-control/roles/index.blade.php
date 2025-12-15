@@ -1,26 +1,45 @@
-@extends('layout.app')
 
-@section('title', 'Roles')
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">Roles List</h4>
 
-@section('content')
+    <div class="d-flex align-items-center gap-3">
+        {{-- Search --}}
+<form method="GET" action="{{ route('admin.access-control.index') }}" class="role-search" id="roleSearchForm">
+  <input type="hidden" name="tab" value="roles">
+  <div class="input-group role-search-pill">
+    <span class="input-group-text bg-white border-0 ps-3">
+      <i class="bx bx-search"></i>
+    </span>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-4">Roles Management</h4>
+    <input type="text"
+           id="roleSearchInput"
+           name="role_q"
+           value="{{ request('role_q') }}"
+           class="form-control border-0 pe-3"
+           placeholder="Search Role...">
+  </div>
+</form>
 
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-            Add Role
+
+        {{-- Add Role --}}
+        <button class="btn btn-primary role-add-btn" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+            <i class="bx bx-plus me-1"></i> Add Role
         </button>
     </div>
+</div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
 
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
+@if(session('error'))
+    <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
 
-    <table class="table table-bordered">
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-sm">
         <thead>
             <tr>
                 <th style="width:70px;">ID</th>
@@ -41,7 +60,7 @@
                     <td>
                         {{-- <span class="text-primary fw-semibold"> --}}
                             {{ $role->name }}
-                        {{-- </span> --}}
+                            {{-- </span> --}}
 
 
                         {{-- users count badge --}}
@@ -97,11 +116,11 @@
                                     </li>
 
                                     {{-- Assign Permissions (optional page) --}}
-                                    <li>
+                                        <li>
                                         <a class="dropdown-item" href="{{ route('admin.roles.permissions', $role->id) }}">
                                             <i class="bx bx-key me-2"></i> Assign Permissions
                                         </a>
-                                    </li>
+                                        </li>
 
                                     <li>
                                         <hr class="dropdown-divider">
@@ -135,6 +154,9 @@
             @endforelse
         </tbody>
     </table>
+    </div>
+    </div>
+
 
     {{-- ===================== MODAL: ADD ROLE ===================== --}}
     <div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
@@ -327,7 +349,18 @@
         </div>
     </div>
 
-@endsection
+
+@push('styles')
+<style>
+.role-search { width: 360px; }
+@media (max-width: 768px){ .role-search { width: 100%; } }
+.role-search-pill{
+  background:#fff; border:1px solid #d7dde7; border-radius:12px;
+  overflow:hidden; height:40px; box-shadow:0 8px 22px rgba(0,0,0,.06);
+}
+.role-add-btn{ height:40px; border-radius:12px; padding:0 16px; }
+</style>
+@endpush
 
 @push('scripts')
     <script>
@@ -404,4 +437,32 @@
         });
 
     </script>
+    <script>
+  function setupLiveSearch(formId, inputId, delay = 350) {
+    const form = document.getElementById(formId);
+    const input = document.getElementById(inputId);
+    if (!form || !input) return;
+
+    let t = null;
+
+    input.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => form.submit(), delay);
+    });
+
+    // Optional: Enter submits immediately
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        form.submit();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setupLiveSearch('roleSearchForm', 'roleSearchInput');
+    setupLiveSearch('permSearchForm', 'permSearchInput');
+  });
+</script>
+
 @endpush
